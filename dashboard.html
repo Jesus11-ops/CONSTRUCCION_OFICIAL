@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Control de Materiales de Construcción</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="container header-inner">
+    <div class="header-brand">
+      <span class="header-icon">🏗️</span>
+      <div>
+        <h1>Materiales de Construcción</h1>
+        <p class="header-sub">Control de Inventario, Ventas y Finanzas</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <span id="rolBadge" class="rol-badge"></span>
+      <button class="btn-cerrar" onclick="cerrarSesion()">Salir</button>
+    </div>
+  </div>
+</header>
+
+<!-- NAVEGACIÓN PRINCIPAL -->
+<nav class="main-nav">
+  <div class="container nav-inner">
+    <button class="nav-btn active" data-section="resumen"    onclick="mostrarSeccion('resumen')">📊 Resumen</button>
+    <button class="nav-btn"        data-section="inventario" onclick="mostrarSeccion('inventario')">📦 Inventario</button>
+    <button class="nav-btn"        data-section="ventas"     onclick="mostrarSeccion('ventas')">💰 Ventas</button>
+    <button class="nav-btn"        data-section="compras"    onclick="mostrarSeccion('compras')">🛒 Compras</button>
+    <button class="nav-btn"        data-section="gastos"     onclick="mostrarSeccion('gastos')">💸 Gastos</button>
+    <button class="nav-btn"        data-section="informes"   onclick="mostrarSeccion('informes')">📈 Informes</button>
+  </div>
+</nav>
+
+<main class="container main-content">
+
+  <!-- ========== SECCIÓN: RESUMEN ========== -->
+  <section id="sec-resumen" class="seccion">
+
+    <!-- Filtro de fechas -->
+    <div class="filtro-fechas card">
+      <div class="filtro-inner">
+        <div class="filtro-grupo">
+          <label>📅 Desde</label>
+          <input type="date" id="fechaDesde">
+        </div>
+        <div class="filtro-grupo">
+          <label>📅 Hasta</label>
+          <input type="date" id="fechaHasta">
+        </div>
+        <button class="btn-filtrar" onclick="aplicarFiltro()">Aplicar filtro</button>
+        <button class="btn-filtrar outline" onclick="filtroMesActual()">Este mes</button>
+      </div>
+    </div>
+
+    <!-- Tarjetas resumen -->
+    <div class="resumen-grid">
+      <div class="res-card verde">
+        <div class="res-icon">💰</div>
+        <div class="res-label">Ingresos por Ventas</div>
+        <div class="res-valor" id="resIngresos">$0</div>
+        <div class="res-sub" id="resCntVentas">0 ventas</div>
+      </div>
+      <div class="res-card rojo">
+        <div class="res-icon">🛒</div>
+        <div class="res-label">Compras (Inversión)</div>
+        <div class="res-valor" id="resCompras">$0</div>
+        <div class="res-sub" id="resCntCompras">0 compras</div>
+      </div>
+      <div class="res-card naranja">
+        <div class="res-icon">💸</div>
+        <div class="res-label">Gastos Varios</div>
+        <div class="res-valor" id="resGastos">$0</div>
+        <div class="res-sub" id="resCntGastos">0 gastos</div>
+      </div>
+      <div class="res-card azul" id="cardGanancia">
+        <div class="res-icon">📈</div>
+        <div class="res-label">Ganancia Neta</div>
+        <div class="res-valor" id="resGanancia">$0</div>
+        <div class="res-sub">Ventas − Compras − Gastos</div>
+      </div>
+    </div>
+
+    <!-- Capital y stock -->
+    <div class="dos-columnas">
+      <div class="card">
+        <h3 class="card-titulo">💼 Capital Invertido en Stock</h3>
+        <p class="capital-nota">Valor de todos los productos que aún no has vendido (costo de compra)</p>
+        <div class="capital-valor" id="capitalStock">$0</div>
+        <div class="capital-sub" id="capitalSub">Calculado sobre inventario actual</div>
+      </div>
+      <div class="card">
+        <h3 class="card-titulo">⚠️ Productos con Stock Bajo</h3>
+        <div id="stockBajo">
+          <p class="empty-txt">Cargando...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Caja vs Capital -->
+    <div class="card" style="margin-top:16px">
+      <h3 class="card-titulo">🏦 Caja & Capital — ¿De dónde sale la plata?</h3>
+      <p style="font-size:0.84rem;color:#6b7c93;margin-bottom:14px">Seguimiento de cuánto tienes en caja (de ventas) y cuánto capital externo has invertido en el período.</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
+        <div style="background:#eafaf1;border-radius:10px;padding:14px;border-left:4px solid #27ae60">
+          <div style="font-size:0.8rem;font-weight:600;color:#1e8449;margin-bottom:4px">💰 CAJA (de ventas)</div>
+          <div style="font-size:1.3rem;font-weight:700;color:#1e8449" id="cajaSaldo">$0</div>
+          <div style="font-size:0.75rem;color:#6b7c93;margin-top:4px" id="cajaSub">Ventas cobradas − compras de caja − gastos</div>
+        </div>
+        <div style="background:#eaf0fb;border-radius:10px;padding:14px;border-left:4px solid #2980b9">
+          <div style="font-size:0.8rem;font-weight:600;color:#1a5276;margin-bottom:4px">💼 CAPITAL EXTERNO invertido</div>
+          <div style="font-size:1.3rem;font-weight:700;color:#1a5276" id="capitalExterno">$0</div>
+          <div style="font-size:0.75rem;color:#6b7c93;margin-top:4px" id="capitalExternoSub">Aportes propios / inversión nueva</div>
+        </div>
+        <div style="background:#fef9e7;border-radius:10px;padding:14px;border-left:4px solid #f39c12">
+          <div style="font-size:0.8rem;font-weight:600;color:#9a6600;margin-bottom:4px">🛒 Compras de caja</div>
+          <div style="font-size:1.3rem;font-weight:700;color:#9a6600" id="comprasDeCaja">$0</div>
+          <div style="font-size:0.75rem;color:#6b7c93;margin-top:4px">Lo que salió de caja para comprar</div>
+        </div>
+        <div style="background:#fdf2f8;border-radius:10px;padding:14px;border-left:4px solid #8e44ad">
+          <div style="font-size:0.8rem;font-weight:600;color:#6c3483;margin-bottom:4px">💸 Compras de capital</div>
+          <div style="font-size:1.3rem;font-weight:700;color:#6c3483" id="comprasDeCapital">$0</div>
+          <div style="font-size:0.75rem;color:#6b7c93;margin-top:4px">Lo que salió de inversión para comprar</div>
+        </div>
+      </div>
+      <div id="alertaCaja" style="display:none;margin-top:12px;padding:10px 14px;background:#fdecea;border:1px solid #e74c3c;border-radius:8px;font-size:0.84rem;color:#c0392b"></div>
+    </div>
+
+    <!-- Top productos vendidos -->
+    <div class="card" style="margin-top:16px">
+      <h3 class="card-titulo">🏆 Productos más vendidos (período seleccionado)</h3>
+      <div id="topProductos"><p class="empty-txt">Sin datos en el período.</p></div>
+    </div>
+
+  </section>
+
+  <!-- ========== SECCIÓN: INVENTARIO ========== -->
+  <section id="sec-inventario" class="seccion" style="display:none">
+
+    <!-- Formulario nuevo producto (solo admin) -->
+    <div class="card form-card" id="formNuevoProducto" style="display:none">
+      <h2 class="form-titulo">➕ Nuevo Producto</h2>
+      <div class="grid-form">
+        <div class="form-group">
+          <label>📦 Nombre del producto</label>
+          <input type="text" id="prodNombre" placeholder="Ej: Cemento Gris, Gravilla">
+        </div>
+        <div class="form-group">
+          <label>🏷️ Categoría</label>
+          <select id="prodCategoria">
+            <option value="">— Seleccione —</option>
+            <option value="Cementos y Pegantes">Cementos y Pegantes</option>
+            <option value="Áridos y Graneles">Áridos y Graneles (gravilla, arena)</option>
+            <option value="Hierros y Metales">Hierros y Metales</option>
+            <option value="Bloques y Ladrillos">Bloques y Ladrillos</option>
+            <option value="Pinturas">Pinturas</option>
+            <option value="Tubería y Plomería">Tubería y Plomería</option>
+            <option value="Eléctricos">Eléctricos</option>
+            <option value="Herramientas">Herramientas</option>
+            <option value="Otros">Otros</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>📏 Unidad de medida</label>
+          <select id="prodUnidad">
+            <option value="Unidad">Unidad</option>
+            <option value="Bulto">Bulto</option>
+            <option value="Barra">Barra</option>
+            <option value="Galón">Galón</option>
+            <option value="Lata">Lata</option>
+            <option value="Metro">Metro</option>
+            <option value="Metro³">Metro cúbico (m³)</option>
+            <option value="Kilogramo">Kilogramo</option>
+            <option value="Tonelada">Tonelada</option>
+            <option value="Global">Global / precio libre</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>🔢 Tipo de stock</label>
+          <select id="prodTipoStock">
+            <option value="contable">Contable (con cantidad exacta)</option>
+            <option value="granel">A granel (cantidad aproximada)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>📉 Stock mínimo (alerta)</label>
+          <input type="number" id="prodStockMin" placeholder="Ej: 5" min="0" value="0">
+        </div>
+        <div class="form-group">
+          <label>📝 Descripción (opcional)</label>
+          <input type="text" id="prodDescripcion" placeholder="Detalles del producto">
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn-primary" onclick="guardarProducto()">💾 Guardar Producto</button>
+        <button class="btn-outline" onclick="cancelarNuevoProducto()">Cancelar</button>
+      </div>
+    </div>
+
+    <!-- Barra de acciones inventario -->
+    <div class="inv-toolbar">
+      <div class="inv-filtros">
+        <input type="text" id="buscarProducto" placeholder="🔍 Buscar producto..." oninput="filtrarProductos()">
+        <select id="filtroCategoria" onchange="filtrarProductos()">
+          <option value="">Todas las categorías</option>
+          <option value="Cementos y Pegantes">Cementos y Pegantes</option>
+          <option value="Áridos y Graneles">Áridos y Graneles</option>
+          <option value="Hierros y Metales">Hierros y Metales</option>
+          <option value="Bloques y Ladrillos">Bloques y Ladrillos</option>
+          <option value="Pinturas">Pinturas</option>
+          <option value="Tubería y Plomería">Tubería y Plomería</option>
+          <option value="Eléctricos">Eléctricos</option>
+          <option value="Herramientas">Herramientas</option>
+          <option value="Otros">Otros</option>
+        </select>
+      </div>
+      <button class="btn-primary" id="btnNuevoProducto" style="display:none" onclick="mostrarFormProducto()">➕ Nuevo Producto</button>
+    </div>
+
+    <div id="listaProductos" class="productos-grid">
+      <p class="empty-txt">Cargando inventario...</p>
+    </div>
+
+  </section>
+
+  <!-- ========== SECCIÓN: VENTAS ========== -->
+  <section id="sec-ventas" class="seccion" style="display:none">
+
+    <!-- Formulario venta -->
+    <div class="card form-card">
+      <h2 class="form-titulo">💰 Registrar Venta</h2>
+      <div class="grid-form">
+        <div class="form-group">
+          <label>📅 Fecha</label>
+          <input type="date" id="ventaFecha">
+        </div>
+        <div class="form-group">
+          <label>👤 Cliente (opcional)</label>
+          <input type="text" id="ventaCliente" placeholder="Nombre del cliente">
+        </div>
+        <div class="form-group">
+          <label>📦 Producto</label>
+          <select id="ventaProducto" onchange="cargarDatosProductoVenta()">
+            <option value="">— Seleccione producto —</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>🔢 Cantidad vendida</label>
+          <input type="number" id="ventaCantidad" placeholder="0" min="0.01" step="0.01" oninput="calcularTotalVenta()">
+          <small id="ventaStockInfo" class="stock-info"></small>
+        </div>
+        <div class="form-group">
+          <label>💵 Precio de venta (por unidad)</label>
+          <input type="text" id="ventaPrecio" placeholder="Precio flexible" inputmode="numeric" oninput="calcularTotalVenta()">
+          <input type="hidden" id="ventaPrecioValue">
+          <small class="stock-info">Puedes ajustar el precio libremente en cada venta</small>
+        </div>
+        <div class="form-group">
+          <label>💰 Total de la venta</label>
+          <div class="total-preview" id="ventaTotal">$0</div>
+        </div>
+        <div class="form-group full-col">
+          <label>📝 Observación (opcional)</label>
+          <input type="text" id="ventaObservacion" placeholder="Detalles adicionales">
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn-verde" onclick="guardarVenta()">💾 Registrar Venta</button>
+      </div>
+    </div>
+
+    <!-- Lista ventas -->
+    <div class="lista-header">
+      <h2>📋 Historial de Ventas</h2>
+      <div class="lista-filtros">
+        <input type="date" id="ventaFiltroDesde">
+        <input type="date" id="ventaFiltroHasta">
+        <button class="btn-outline" onclick="filtrarVentas()">Filtrar</button>
+      </div>
+    </div>
+    <div id="listaVentas" class="registros-lista">
+      <p class="empty-txt">Cargando ventas...</p>
+    </div>
+
+  </section>
+
+  <!-- ========== SECCIÓN: COMPRAS ========== -->
+  <section id="sec-compras" class="seccion" style="display:none">
+
+    <div class="card form-card" id="formCompraAdmin" style="display:none">
+      <h2 class="form-titulo">🛒 Registrar Compra / Entrada de Mercancía</h2>
+      <div class="grid-form">
+        <div class="form-group">
+          <label>📅 Fecha</label>
+          <input type="date" id="compraFecha">
+        </div>
+        <div class="form-group">
+          <label>🏪 Proveedor (opcional)</label>
+          <input type="text" id="compraProveedor" placeholder="Nombre del proveedor">
+        </div>
+        <div class="form-group full-col">
+          <label>📦 Producto</label>
+          <select id="compraProducto" onchange="cargarUnidadCompra()">
+            <option value="">— Seleccione producto —</option>
+          </select>
+          <small id="compraUnidadInfo" class="stock-info"></small>
+        </div>
+
+        <!-- MODO CONTABLE (varillas, cemento, etc.) -->
+        <div id="bloqueContable" style="display:none" class="full-col">
+          <div class="grid-form" style="margin:0;padding:0;background:transparent;box-shadow:none;border:none">
+            <div class="form-group">
+              <label>🔢 Cantidad comprada</label>
+              <input type="number" id="compraCantidad" placeholder="Ej: 50" min="1" step="1" oninput="calcularCostoUnitario()">
+            </div>
+            <div class="form-group">
+              <label>💲 Costo por unidad</label>
+              <input type="text" id="compraCostoUnitarioInput" placeholder="Ej: 1.500" inputmode="numeric" oninput="calcularCostoUnitario()">
+              <small class="stock-info">Ejemplo: compré 50 varillas a $1.500 cada una</small>
+            </div>
+            <div class="form-group">
+              <label>💵 Total de la compra (calculado)</label>
+              <div class="total-preview" id="compraTotalCalculado">$0</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- MODO GRANEL (gravilla, arena: solo cuánto pagaste) -->
+        <div id="bloqueGranel" style="display:none" class="full-col">
+          <div class="aviso-granel" style="background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:12px 16px;margin-bottom:12px;font-size:0.88rem;color:#7c5e00">
+            🪣 <strong>Producto a granel:</strong> Solo ingresa lo que pagaste por este cargamento (volco, camión, etc.). La ganancia se verá cuando vayas vendiendo latas o lo que vendas.
+          </div>
+          <div class="form-group">
+            <label>💵 Lo que pagaste por este cargamento</label>
+            <input type="text" id="compraCostoGranel" placeholder="Ej: 900.000" inputmode="numeric" oninput="formatearGranel()">
+            <input type="hidden" id="compraCostoGranelValue">
+            <small class="stock-info">Ejemplo: el volco de gravilla te costó $900.000</small>
+          </div>
+        </div>
+
+        <!-- Campo oculto para costo total (siempre presente) -->
+        <input type="hidden" id="compraCostoValue">
+
+        <!-- FUENTE DE DINERO -->
+        <div class="form-group full-col" id="bloqueFuente" style="display:none">
+          <label>💳 ¿De dónde sale el dinero?</label>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px">
+            <label class="fuente-opt" id="optCaja">
+              <input type="radio" name="fuenteDinero" value="caja" onchange="actualizarFuente()"> 💰 De Caja (lo vendido)
+            </label>
+            <label class="fuente-opt" id="optCapital">
+              <input type="radio" name="fuenteDinero" value="capital" onchange="actualizarFuente()"> 💼 Capital Externo (inversión mía)
+            </label>
+            <label class="fuente-opt" id="optMixto">
+              <input type="radio" name="fuenteDinero" value="mixto" onchange="actualizarFuente()"> 🔀 Mixto (parte de cada uno)
+            </label>
+          </div>
+          <!-- Bloque mixto -->
+          <div id="bloqueMixto" style="display:none;margin-top:10px;background:#f0f4ff;border:1px solid #c7d4f7;border-radius:8px;padding:12px">
+            <p style="font-size:0.84rem;color:#3a4a6b;margin-bottom:8px">💡 Indica cuánto sale de cada fuente:</p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div class="form-group" style="margin:0">
+                <label style="font-size:0.82rem">💰 De Caja</label>
+                <input type="text" id="fuenteMontoCaja" placeholder="Ej: 500.000" inputmode="numeric" oninput="formatearMixto('fuenteMontoCaja','_cajav')" style="font-size:0.9rem">
+                <input type="hidden" id="fuenteMontoCaja_cajav">
+              </div>
+              <div class="form-group" style="margin:0">
+                <label style="font-size:0.82rem">💼 Capital Externo</label>
+                <input type="text" id="fuenteMontoCapital" placeholder="Ej: 400.000" inputmode="numeric" oninput="formatearMixto('fuenteMontoCapital','_capv')" style="font-size:0.9rem">
+                <input type="hidden" id="fuenteMontoCapital_capv">
+              </div>
+            </div>
+          </div>
+          <small class="stock-info" id="fuenteHint" style="margin-top:6px;display:block;color:#c0392b">⚠️ Selecciona de dónde sale el dinero para esta compra</small>
+        </div>
+
+        <div class="form-group full-col">
+          <label>📝 Observación (opcional)</label>
+          <input type="text" id="compraObservacion" placeholder="Ej: 1 volco de gravilla, factura #123">
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn-primary" onclick="guardarCompra()">💾 Registrar Compra</button>
+      </div>
+    </div>
+
+    <div class="lista-header">
+      <h2>📋 Historial de Compras</h2>
+    </div>
+    <div id="listaCompras" class="registros-lista">
+      <p class="empty-txt">Cargando compras...</p>
+    </div>
+
+  </section>
+
+  <!-- ========== SECCIÓN: GASTOS ========== -->
+  <section id="sec-gastos" class="seccion" style="display:none">
+
+    <div class="card form-card" id="formGastoAdmin" style="display:none">
+      <h2 class="form-titulo">💸 Registrar Gasto</h2>
+      <div class="grid-form">
+        <div class="form-group">
+          <label>📅 Fecha</label>
+          <input type="date" id="gastoFecha">
+        </div>
+        <div class="form-group">
+          <label>📂 Categoría del gasto</label>
+          <select id="gastoCategoria">
+            <option value="">— Seleccione —</option>
+            <option value="Transporte / Flete">Transporte / Flete</option>
+            <option value="Arriendo / Local">Arriendo / Local</option>
+            <option value="Servicios públicos">Servicios públicos</option>
+            <option value="Nomina / Empleados">Nómina / Empleados</option>
+            <option value="Publicidad">Publicidad</option>
+            <option value="Mantenimiento">Mantenimiento</option>
+            <option value="Impuestos">Impuestos</option>
+            <option value="Papelería">Papelería / Insumos oficina</option>
+            <option value="Otros">Otros gastos</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>💵 Monto</label>
+          <input type="text" id="gastoMonto" placeholder="0" inputmode="numeric">
+          <input type="hidden" id="gastoMontoValue">
+        </div>
+        <div class="form-group full-col">
+          <label>📝 Descripción</label>
+          <input type="text" id="gastoDescripcion" placeholder="Detalle del gasto">
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn-rojo" onclick="guardarGasto()">💾 Registrar Gasto</button>
+      </div>
+    </div>
+
+    <div class="lista-header">
+      <h2>📋 Historial de Gastos</h2>
+    </div>
+    <div id="listaGastos" class="registros-lista">
+      <p class="empty-txt">Cargando gastos...</p>
+    </div>
+
+  </section>
+
+  <!-- ========== SECCIÓN: INFORMES ========== -->
+  <section id="sec-informes" class="seccion" style="display:none">
+
+    <div class="card">
+      <h2 class="form-titulo">📈 Generar Informe</h2>
+      <div class="informe-filtros">
+        <div class="form-group">
+          <label>📅 Fecha inicio</label>
+          <input type="date" id="informeDesde">
+        </div>
+        <div class="form-group">
+          <label>📅 Fecha fin</label>
+          <input type="date" id="informeHasta">
+        </div>
+      </div>
+      <div class="form-actions" style="margin-top:16px">
+        <button class="btn-verde" onclick="generarInforme()">📊 Ver Informe en Pantalla</button>
+        <button class="btn-primary" onclick="exportarExcel()">📥 Exportar Excel</button>
+      </div>
+    </div>
+
+    <div id="panelInforme" style="display:none">
+      <!-- Informe generado dinámicamente -->
+    </div>
+
+  </section>
+
+</main>
+
+<!-- MODAL EDITAR PRODUCTO -->
+<div id="modalEditarProducto" class="modal-overlay" style="display:none">
+  <div class="modal-box">
+    <h3>✏️ Editar Producto</h3>
+    <input type="hidden" id="editProdId">
+    <div class="form-group">
+      <label>Nombre</label>
+      <input type="text" id="editProdNombre">
+    </div>
+    <div class="form-group">
+      <label>Categoría</label>
+      <select id="editProdCategoria">
+        <option value="Cementos y Pegantes">Cementos y Pegantes</option>
+        <option value="Áridos y Graneles">Áridos y Graneles</option>
+        <option value="Hierros y Metales">Hierros y Metales</option>
+        <option value="Bloques y Ladrillos">Bloques y Ladrillos</option>
+        <option value="Pinturas">Pinturas</option>
+        <option value="Tubería y Plomería">Tubería y Plomería</option>
+        <option value="Eléctricos">Eléctricos</option>
+        <option value="Herramientas">Herramientas</option>
+        <option value="Otros">Otros</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Stock mínimo (alerta)</label>
+      <input type="number" id="editProdStockMin" min="0">
+    </div>
+    <div class="form-group">
+      <label>Ajuste manual de stock</label>
+      <input type="number" id="editProdStockAjuste" placeholder="Dejar vacío para no cambiar" step="0.01">
+      <small class="stock-info">⚠️ Solo si necesitas corregir el stock manualmente</small>
+    </div>
+    <div class="form-group">
+      <label>Descripción</label>
+      <input type="text" id="editProdDescripcion">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-primary" onclick="guardarEdicionProducto()">💾 Guardar</button>
+      <button class="btn-outline" onclick="cerrarModal('modalEditarProducto')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDITAR VENTA -->
+<div id="modalEditarVenta" class="modal-overlay" style="display:none">
+  <div class="modal-box">
+    <h3>✏️ Editar Venta</h3>
+    <input type="hidden" id="editVentaId">
+    <div class="form-group">
+      <label>Cliente</label>
+      <input type="text" id="editVentaCliente">
+    </div>
+    <div class="form-group">
+      <label>Precio de venta (por unidad)</label>
+      <input type="text" id="editVentaPrecio" inputmode="numeric">
+      <input type="hidden" id="editVentaPrecioValue">
+    </div>
+    <div class="form-group">
+      <label>Observación</label>
+      <input type="text" id="editVentaObservacion">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-verde" onclick="guardarEdicionVenta()">💾 Guardar</button>
+      <button class="btn-outline" onclick="cerrarModal('modalEditarVenta')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="container">Sistema de Control de Materiales de Construcción · v1.0</div>
+</footer>
+
+<script type="module" src="app.js"></script>
+<script type="module" src="exportar.js"></script>
+</body>
+</html>

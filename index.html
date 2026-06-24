@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Materiales de Construcción - Acceso</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="login-page">
+
+<div class="login-wrapper">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="logo-icon">🏗️</div>
+      <h1>Materiales</h1>
+      <p class="logo-sub">Sistema de Control de Inventario y Ventas</p>
+    </div>
+
+    <div class="login-form">
+      <div class="form-group">
+        <label>Correo electrónico</label>
+        <input type="email" id="email" placeholder="correo@ejemplo.com" autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label>Contraseña</label>
+        <input type="password" id="password" placeholder="••••••••"
+          onkeydown="if(event.key==='Enter') login()">
+      </div>
+      <button class="btn-login" onclick="login()">Ingresar</button>
+    </div>
+
+    <div class="crear-link">
+      <button class="btn-text" onclick="toggleCrear()">+ Crear usuario empleado</button>
+    </div>
+
+    <div id="createUserBox" style="display:none" class="create-box">
+      <h4>Crear usuario (máx. 2)</h4>
+      <div class="form-group">
+        <label>Correo</label>
+        <input type="email" id="newEmail" placeholder="empleado@ejemplo.com">
+      </div>
+      <div class="form-group">
+        <label>Contraseña</label>
+        <input type="password" id="newPassword" placeholder="Mínimo 6 caracteres">
+      </div>
+      <div class="btn-row">
+        <button onclick="crearUsuario()">Crear</button>
+        <button class="btn-cancel" onclick="toggleCrear()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+  <p class="login-footer">Sistema de Gestión · v1.0</p>
+</div>
+
+<script type="module" src="auth.js"></script>
+</body>
+</html>
