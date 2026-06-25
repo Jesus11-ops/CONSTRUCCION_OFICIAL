@@ -161,11 +161,21 @@ function actualizarResumen() {
   // ── CAJA Y CAPITAL ──
   const comprasDeCaja    = comprasPer.reduce((s,c) => s + (c.montoDeCaja    || (c.fuenteDinero==="caja"    ? c.costoTotal : 0) || 0), 0);
   const comprasDeCapital = comprasPer.reduce((s,c) => s + (c.montoDeCapital || (c.fuenteDinero==="capital" ? c.costoTotal : 0) || 0), 0);
-  const gastosDeCaja     = gastosPer.reduce((s,g)  => s + (g.monto||0), 0); // gastos siempre de caja
+  const gastosDeCaja     = gastosPer.reduce((s,g) => {
+    if (!g.fuenteDinero || g.fuenteDinero === "caja") return s + (g.monto||0);
+    if (g.fuenteDinero === "capital") return s;
+    // mixto: usar montoDeCaja si existe
+    return s + (g.montoDeCaja || 0);
+  }, 0);
+  const gastosDeCapital  = gastosPer.reduce((s,g) => {
+    if (g.fuenteDinero === "capital") return s + (g.monto||0);
+    if (g.fuenteDinero === "mixto")   return s + (g.montoDeCapital||0);
+    return s;
+  }, 0);
   const cajaSaldo        = totalVentas - comprasDeCaja - gastosDeCaja;
 
   setText("cajaSaldo",        fmt(cajaSaldo));
-  setText("capitalExterno",   fmt(comprasDeCapital));
+  setText("capitalExterno",   fmt(comprasDeCapital + gastosDeCapital));
   setText("comprasDeCaja",    fmt(comprasDeCaja));
   setText("comprasDeCapital", fmt(comprasDeCapital));
 
@@ -183,12 +193,14 @@ function actualizarResumen() {
   }
 
   const comprasSinFuente = comprasPer.filter(c => !c.fuenteDinero).length;
+  const gastosSinFuente  = gastosPer.filter(g => !g.fuenteDinero).length;
   const subEl = document.getElementById("cajaSub");
   if (subEl) {
-    subEl.textContent = comprasSinFuente > 0
-      ? `⚠️ ${comprasSinFuente} compra(s) sin fuente registrada`
-      : "Ventas cobradas − compras de caja − gastos";
-    subEl.style.color = comprasSinFuente > 0 ? "#c0392b" : "#6b7c93";
+    const total = comprasSinFuente + gastosSinFuente;
+    subEl.textContent = total > 0
+      ? `⚠️ ${total} registro(s) sin fuente de dinero`
+      : "Ventas cobradas − compras de caja − gastos de caja";
+    subEl.style.color = total > 0 ? "#c0392b" : "#6b7c93";
   }
 
   // Capital en stock
@@ -792,7 +804,11 @@ function limpiarFormCompra() {
 function renderCompras() {
   const container = document.getElementById("listaCompras"); if(!container) return;
   if (!comprasGlobal.length) { container.innerHTML='<p class="empty-txt">No hay compras registradas.</p>'; return; }
-  container.innerHTML = comprasGlobal.map(c => {
+  const data = [...comprasGlobal].sort((a,b) => {
+    if (b.fecha !== a.fecha) return b.fecha.localeCompare(a.fecha);
+    return (b.creadoEn||"").localeCompare(a.creadoEn||"");
+  });
+  container.innerHTML = data.map(c => {
     const esGranel = c.tipoCompra === "granel" || !c.cantidad;
     return `
     <div class="reg-card">
@@ -835,29 +851,80 @@ window.eliminarCompra = async function(id, prodId, cantidad) {
 };
 
 // ===== GASTOS =====
+window.actualizarFuenteGasto = function() {
+  const val = document.querySelector("input[name='gastoFuente']:checked")?.value;
+  const bm  = document.getElementById("gastoBloqueMixto");
+  const fh  = document.getElementById("gastoFuenteHint");
+  if (bm) bm.style.display = val === "mixto" ? "block" : "none";
+  if (fh) fh.style.display = val ? "none" : "block";
+};
+
+window.formatearMixtoGasto = function(inputId, hiddenSuffix) {
+  const inp = document.getElementById(inputId); if (!inp) return;
+  const n = parseMonto(inp.value);
+  inp.value = n > 0 ? n.toLocaleString("es-CO") : inp.value;
+  const h = document.getElementById(inputId + hiddenSuffix); if (h) h.value = n;
+};
+
 window.guardarGasto = async function() {
   if (!esAdmin) { alert("⛔ Solo el administrador puede registrar gastos."); return; }
-  const fecha      = document.getElementById("gastoFecha").value;
-  const categoria  = document.getElementById("gastoCategoria").value;
-  const monto      = parseMonto(document.getElementById("gastoMonto").value);
-  const descripcion= document.getElementById("gastoDescripcion").value.trim();
-  if (!fecha)     { alert("⚠️ Ingrese la fecha"); return; }
-  if (!categoria) { alert("⚠️ Seleccione la categoría"); return; }
-  if (monto<=0)   { alert("⚠️ Ingrese el monto"); return; }
+  const fecha       = document.getElementById("gastoFecha").value;
+  const categoria   = document.getElementById("gastoCategoria").value;
+  const monto       = parseMonto(document.getElementById("gastoMonto").value);
+  const descripcion = document.getElementById("gastoDescripcion").value.trim();
+
+  if (!fecha)    { alert("⚠️ Ingrese la fecha"); return; }
+  if (!categoria){ alert("⚠️ Seleccione la categoría"); return; }
+  if (monto <= 0){ alert("⚠️ Ingrese el monto"); return; }
+
+  // Fuente de dinero
+  const fuenteRad = document.querySelector("input[name='gastoFuente']:checked");
+  if (!fuenteRad) { alert("⚠️ Selecciona de dónde sale el dinero (Caja, Capital Propio o Mixto)"); return; }
+  const fuenteDinero = fuenteRad.value;
+  let montoDeCaja = 0, montoDeCapital = 0;
+  if (fuenteDinero === "caja") {
+    montoDeCaja = monto;
+  } else if (fuenteDinero === "capital") {
+    montoDeCapital = monto;
+  } else {
+    montoDeCaja    = Number(document.getElementById("gastoMontoCaja_gv")?.value)    || 0;
+    montoDeCapital = Number(document.getElementById("gastoMontoCapital_gpv")?.value) || 0;
+    if (montoDeCaja <= 0 && montoDeCapital <= 0) { alert("⚠️ Ingresa los montos de Caja y/o Capital Propio"); return; }
+  }
+
+  const iconFuente = { caja:"💰 Caja (ventas)", capital:"💼 Capital propio", mixto:`🔀 Mixto (Caja: ${fmt(montoDeCaja)} · Capital: ${fmt(montoDeCapital)})` };
+
   try {
-    await addDoc(collection(db,"Gastos"), { fecha, diaSemana:getDia(fecha), categoria, monto, descripcion, creadoEn:new Date().toISOString() });
-    alert("✅ Gasto registrado: " + fmt(monto));
-    document.getElementById("gastoCategoria").value   = "";
-    document.getElementById("gastoMonto").value       = "";
-    document.getElementById("gastoDescripcion").value = "";
-    document.getElementById("gastoFecha").value       = hoy();
+    await addDoc(collection(db,"Gastos"), {
+      fecha, diaSemana: getDia(fecha), categoria, monto, descripcion,
+      fuenteDinero, montoDeCaja, montoDeCapital,
+      creadoEn: new Date().toISOString()
+    });
+    alert(`✅ Gasto registrado: ${fmt(monto)}\n${iconFuente[fuenteDinero]}`);
+    // Limpiar formulario
+    ["gastoCategoria","gastoMonto","gastoDescripcion","gastoMontoCaja","gastoMontoCapital"].forEach(id => {
+      const e = document.getElementById(id); if(e) e.value = "";
+    });
+    ["gastoMontoValue","gastoMontoCaja_gv","gastoMontoCapital_gpv"].forEach(id => {
+      const e = document.getElementById(id); if(e) e.value = "";
+    });
+    document.querySelectorAll("input[name='gastoFuente']").forEach(r => r.checked = false);
+    const bm = document.getElementById("gastoBloqueMixto"); if(bm) bm.style.display = "none";
+    const fh = document.getElementById("gastoFuenteHint"); if(fh) fh.style.display = "block";
+    document.getElementById("gastoFecha").value = hoy();
   } catch(e) { alert("❌ "+e.message); }
 };
 
 function renderGastos() {
   const container = document.getElementById("listaGastos"); if(!container) return;
   if (!gastosGlobal.length) { container.innerHTML='<p class="empty-txt">No hay gastos registrados.</p>'; return; }
-  container.innerHTML = gastosGlobal.map(g=>`
+  container.innerHTML = gastosGlobal.map(g => {
+    const fuenteIcons = { caja:"💰 Caja (ventas)", capital:"💼 Capital propio", mixto:`🔀 Mixto (Caja: ${fmt(g.montoDeCaja||0)} · Capital: ${fmt(g.montoDeCapital||0)})` };
+    const fuenteColors = { caja:"#1e8449", capital:"#1a5276", mixto:"#6c3483" };
+    const fuenteHtml = g.fuenteDinero
+      ? `<div class="reg-dato full-col"><div class="reg-dato-lbl">Fuente de dinero</div><div class="reg-dato-val" style="font-weight:700;color:${fuenteColors[g.fuenteDinero]||'#333'}">${fuenteIcons[g.fuenteDinero]||g.fuenteDinero}</div></div>`
+      : `<div class="reg-dato full-col"><div class="reg-dato-lbl">Fuente de dinero</div><div class="reg-dato-val" style="color:#c0392b;font-size:0.82rem">⚠️ No registrada (gasto antiguo)</div></div>`;
+    return `
     <div class="reg-card">
       <div class="reg-head gasto-h">
         <div class="reg-head-left">
@@ -868,9 +935,11 @@ function renderGastos() {
       </div>
       <div class="reg-body">
         ${g.descripcion?`<div class="reg-dato"><div class="reg-dato-lbl">Descripción</div><div class="reg-dato-val">${g.descripcion}</div></div>`:""}
+        ${fuenteHtml}
       </div>
       ${esAdmin?`<div class="reg-actions"><button class="btn-rojo btn-sm" onclick="eliminarGasto('${g.id}')">🗑️ Eliminar</button></div>`:""}
-    </div>`).join("");
+    </div>`;
+  }).join("");
 }
 
 window.eliminarGasto = async function(id) {

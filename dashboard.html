@@ -432,6 +432,42 @@
           <label>📝 Descripción</label>
           <input type="text" id="gastoDescripcion" placeholder="Detalle del gasto">
         </div>
+
+        <!-- FUENTE DE DINERO GASTO -->
+        <div class="form-group full-col" id="gastoBloqueFuente">
+          <label>💳 ¿De dónde sale el dinero?</label>
+          <div class="fuente-opciones" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px">
+            <label class="fuente-radio-lbl" style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;color:#1e8449">
+              <input type="radio" name="gastoFuente" value="caja" onchange="actualizarFuenteGasto()"> 💰 Caja (ventas)
+            </label>
+            <label class="fuente-radio-lbl" style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;color:#1a5276">
+              <input type="radio" name="gastoFuente" value="capital" onchange="actualizarFuenteGasto()"> 💼 Capital propio
+            </label>
+            <label class="fuente-radio-lbl" style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;color:#6c3483">
+              <input type="radio" name="gastoFuente" value="mixto" onchange="actualizarFuenteGasto()"> 🔀 Mixto
+            </label>
+          </div>
+          <div id="gastoFuenteHint" style="font-size:0.82rem;color:#c0392b;margin-top:4px">⚠️ Selecciona de dónde sale el dinero para este gasto</div>
+        </div>
+
+        <!-- BLOQUE MIXTO GASTO -->
+        <div id="gastoBloqueMixto" class="form-group full-col" style="display:none;background:#f3f0fa;border-radius:10px;padding:12px;border:1px solid #d7bde2">
+          <label style="color:#6c3483;font-weight:700">🔀 Distribución del monto</label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px">
+            <div>
+              <label style="font-size:0.83rem;color:#1e8449">💰 De Caja</label>
+              <input type="text" id="gastoMontoCaja" placeholder="0" inputmode="numeric"
+                oninput="formatearMixtoGasto('gastoMontoCaja','_gv')" style="width:100%">
+              <input type="hidden" id="gastoMontoCaja_gv">
+            </div>
+            <div>
+              <label style="font-size:0.83rem;color:#1a5276">💼 De Capital Propio</label>
+              <input type="text" id="gastoMontoCapital" placeholder="0" inputmode="numeric"
+                oninput="formatearMixtoGasto('gastoMontoCapital','_gpv')" style="width:100%">
+              <input type="hidden" id="gastoMontoCapital_gpv">
+            </div>
+          </div>
+        </div>
       </div>
       <div class="form-actions">
         <button class="btn-rojo" onclick="guardarGasto()">💾 Registrar Gasto</button>
