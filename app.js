@@ -49,7 +49,11 @@ const PRODUCTOS_INICIALES = [
 // ===== FORMATO MONEDA =====
 function fmt(n) { return "$" + Number(n || 0).toLocaleString("es-CO"); }
 function parseMonto(str) { return Number(String(str).replace(/\D/g, "")) || 0; }
-function hoy() { return new Date().toISOString().split("T")[0]; }
+function hoy() {
+  // Usamos America/Bogota explícitamente en vez de toISOString() (que da la fecha en UTC).
+  // Colombia es UTC-5, así que entre las 7pm y medianoche, toISOString() ya mostraba el día siguiente.
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota" }).format(new Date());
+}
 function getDia(f) {
   const dias = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
   const [a,m,d] = f.split("-");
@@ -122,6 +126,25 @@ function iniciarListeners() {
 function enPeriodo(fecha) {
   if (!filtroDesde || !filtroHasta) return true;
   return fecha >= filtroDesde && fecha <= filtroHasta;
+}
+
+// Ganancia de HOY (independiente del filtro de fechas del período), para el badge discreto.
+function calcGananciaHoy() {
+  const h = hoy();
+  const ventasHoy  = ventasGlobal.filter(v => v.fecha === h);
+  const comprasHoy = comprasGlobal.filter(c => c.fecha === h);
+  const gastosHoy  = gastosGlobal.filter(g => g.fecha === h);
+
+  const gananciaContableHoy = ventasHoy.filter(v => v.tipoStock !== "granel").reduce((s,v) => s + (v.gananciaVenta||0), 0);
+  const ventasGranelHoy     = ventasHoy.filter(v => v.tipoStock === "granel").reduce((s,v) => s + (v.total||0), 0);
+  const comprasGranelHoy    = comprasHoy.filter(c => c.tipoCompra === "granel").reduce((s,c) => s + (c.costoTotal||0), 0);
+  const gananciaGranelHoy   = ventasGranelHoy - comprasGranelHoy;
+  const totalGastosHoy      = gastosHoy.reduce((s,g) => s + (g.monto||0), 0);
+
+  return {
+    ganancia: gananciaContableHoy + gananciaGranelHoy - totalGastosHoy,
+    numMovs: ventasHoy.length + comprasHoy.length + gastosHoy.length
+  };
 }
 
 function actualizarResumen() {
@@ -209,6 +232,22 @@ function actualizarResumen() {
   const totalProd = productosGlobal.length;
   setText("capitalSub", totalProd + " productos en inventario");
 
+  // ── Badge discreto: ganancia de hoy ──
+  const elBadgeHoy = document.getElementById("gananciaHoyBadge");
+  if (elBadgeHoy) {
+    const gh = calcGananciaHoy();
+    elBadgeHoy.classList.remove("pos", "neg");
+    if (gh.numMovs === 0) {
+      elBadgeHoy.textContent = "Sin movimientos hoy";
+    } else if (gh.ganancia >= 0) {
+      elBadgeHoy.classList.add("pos");
+      elBadgeHoy.textContent = "▲ Hoy: +" + fmt(gh.ganancia);
+    } else {
+      elBadgeHoy.classList.add("neg");
+      elBadgeHoy.textContent = "▼ Hoy: -" + fmt(Math.abs(gh.ganancia));
+    }
+  }
+
   renderStockBajo();
   renderTopProductos(ventasPer);
 }
@@ -231,29 +270,25 @@ function renderTopProductos(ventasPer) {
 
   ventasPer.forEach(v => {
     if (!agrup[v.productoNombre]) agrup[v.productoNombre] = {
-      ventas:0, ingresos:0, ganancia:0,
-      esGranel: v.tipoStock==="granel",
-      invertido:0, cantidadVendida:0
+      ventas: 0, ingresos: 0, ganancia: 0, cantidadVendida: 0,
+      esGranel: v.tipoStock === "granel", huboCompraGranel: false
     };
-    agrup[v.productoNombre].ventas++;
-    agrup[v.productoNombre].ingresos += (v.total||0);
-    agrup[v.productoNombre].cantidadVendida += (v.cantidad||0);
-    if (v.tipoStock !== "granel") agrup[v.productoNombre].ganancia += (v.gananciaVenta||0);
+    const d = agrup[v.productoNombre];
+    d.ventas++;
+    d.ingresos += (v.total || 0);
+    d.cantidadVendida += (v.cantidad || 0);
+    // Contable: la ganancia real ya quedó calculada al momento de la venta
+    // (precio de venta − costo unitario promedio del producto), sin depender de
+    // si hubo o no una compra registrada justo en este período.
+    if (v.tipoStock !== "granel") d.ganancia += (v.gananciaVenta || 0);
   });
 
-  // Para granel: acumular lo invertido (compras del período)
+  // Granel: no hay costo unitario por producto, así que la ganancia sí depende del
+  // balance del período (ventas del cargamento − lo pagado por ese cargamento).
   comprasPer.filter(c => c.tipoCompra === "granel").forEach(c => {
     if (agrup[c.productoNombre]) {
-      agrup[c.productoNombre].invertido += (c.costoTotal||0);
-      agrup[c.productoNombre].ganancia  -= (c.costoTotal||0);
-    }
-  });
-
-  // Para contable: acumular inversión total del período (todas las compras del período)
-  // y también buscar el lote activo en TODOS los comprasGlobal para mostrar recuperación real
-  comprasPer.filter(c => c.tipoCompra !== "granel").forEach(c => {
-    if (agrup[c.productoNombre]) {
-      agrup[c.productoNombre].invertido += (c.costoTotal||0);
+      agrup[c.productoNombre].ganancia -= (c.costoTotal || 0);
+      agrup[c.productoNombre].huboCompraGranel = true;
     }
   });
 
@@ -261,67 +296,22 @@ function renderTopProductos(ventasPer) {
   if (!lista.length) { container.innerHTML = '<p class="empty-txt">Sin ventas en el período seleccionado.</p>'; return; }
 
   container.innerHTML = lista.map(([nombre, d], i) => {
-    const invertido  = d.invertido;
-    const recuperado = d.ingresos;
-    // Ganancia real = lo recuperado - lo invertido (en el período)
-    const gananciaReal = recuperado - invertido;
-    const pct = invertido > 0 ? Math.min(100, Math.round((recuperado / invertido) * 100)) : (recuperado > 0 ? 100 : 0);
-    const enGanancia = gananciaReal >= 0;
-
-    // Color de barra: verde al llegar a 100%+, naranja >60%, rojo <60%
-    const barColor = pct >= 100 ? '#27ae60' : (pct > 60 ? '#f39c12' : '#e74c3c');
-
-    if (d.esGranel) {
-      return `
-      <div class="top-item" style="flex-direction:column;align-items:stretch;gap:6px">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div class="top-item-nombre">${i+1}. ${nombre} <span style="font-size:0.7rem;background:#fff3cd;color:#7c5e00;border-radius:4px;padding:1px 6px;font-weight:600">granel</span></div>
-          <span style="font-size:0.82rem;color:#6b7c93">${d.ventas} ventas</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;font-size:0.82rem;flex-wrap:wrap;gap:4px">
-          <span>💰 Invertido: <strong>${fmt(invertido)}</strong></span>
-          <span>💵 Recuperado: <strong style="color:#2980b9">${fmt(recuperado)}</strong></span>
-          <span style="font-weight:700;color:${enGanancia?'#27ae60':'#e74c3c'}">${enGanancia ? '✅ Ganancia: '+fmt(gananciaReal) : '⏳ Por recuperar: '+fmt(Math.abs(gananciaReal))}</span>
-        </div>
-        <div style="background:#e9ecef;border-radius:20px;height:10px;overflow:hidden">
-          <div style="height:100%;width:${pct}%;background:${barColor};border-radius:20px;transition:width 0.4s ease"></div>
-        </div>
-        <div style="font-size:0.75rem;color:#6b7c93;text-align:right">${pct}% recuperado del cargamento</div>
-      </div>`;
-    } else {
-      // Contable (cemento, varillas, etc.)
-      // Si hay inversión registrada en el período, mostramos el tracker de recuperación
-      if (invertido > 0) {
-        return `
-        <div class="top-item" style="flex-direction:column;align-items:stretch;gap:6px">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <div class="top-item-nombre">${i+1}. ${nombre}</div>
-            <span style="font-size:0.82rem;color:#6b7c93">${d.ventas} ventas · ${d.cantidadVendida} unid.</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;font-size:0.82rem;flex-wrap:wrap;gap:4px">
-            <span>💰 Invertido: <strong>${fmt(invertido)}</strong></span>
-            <span>💵 Recuperado: <strong style="color:#2980b9">${fmt(recuperado)}</strong></span>
-            <span style="font-weight:700;color:${enGanancia?'#27ae60':'#e74c3c'}">${enGanancia ? '✅ Ganancia: '+fmt(gananciaReal) : '⏳ Por recuperar: '+fmt(Math.abs(gananciaReal))}</span>
-          </div>
-          <div style="background:#e9ecef;border-radius:20px;height:10px;overflow:hidden">
-            <div style="height:100%;width:${pct}%;background:${barColor};border-radius:20px;transition:width 0.4s ease"></div>
-          </div>
-          <div style="font-size:0.75rem;color:#6b7c93;text-align:right">${pct}% recuperado de la inversión del período</div>
-        </div>`;
-      } else {
-        // Sin compras registradas en el período: mostrar modo simple con nota
-        return `
-        <div class="top-item" style="flex-direction:column;align-items:stretch;gap:6px">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <div class="top-item-nombre">${i+1}. ${nombre}</div>
-            <span style="font-size:0.82rem;color:#6b7c93">${d.ventas} ventas · ${fmt(recuperado)}</span>
-          </div>
-          <div style="font-size:0.78rem;color:#e67e22;background:#fff8e1;border-radius:6px;padding:5px 8px">
-            ⚠️ No hay compras registradas en este período. Registra la compra del lote para ver cuánto falta por recuperar.
-          </div>
-        </div>`;
-      }
-    }
+    const gananciaColor = d.ganancia >= 0 ? '#27ae60' : '#e74c3c';
+    const notaGranel = d.esGranel && !d.huboCompraGranel
+      ? '<div style="font-size:0.72rem;color:#6b7c93;margin-top:2px">Sin compra de cargamento en este período — la ganancia mostrada es solo ingresos.</div>'
+      : '';
+    return `
+    <div class="top-item" style="flex-direction:column;align-items:stretch;gap:4px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div class="top-item-nombre">${i+1}. ${nombre}${d.esGranel ? ' <span style="font-size:0.7rem;background:#fff3cd;color:#7c5e00;border-radius:4px;padding:1px 6px;font-weight:600">granel</span>' : ''}</div>
+        <span style="font-size:0.82rem;color:#6b7c93">${d.ventas} ventas${d.esGranel ? '' : ' · ' + d.cantidadVendida + ' unid.'}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:0.85rem">
+        <span>Ingresos: <strong>${fmt(d.ingresos)}</strong></span>
+        <span style="font-weight:700;color:${gananciaColor}">${d.ganancia >= 0 ? '✅ ' : '⚠️ '}${fmt(d.ganancia)}</span>
+      </div>
+      ${notaGranel}
+    </div>`;
   }).join("");
 }
 

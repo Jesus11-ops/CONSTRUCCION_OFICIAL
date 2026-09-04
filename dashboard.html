@@ -55,6 +55,7 @@
         </div>
         <button class="btn-filtrar" onclick="aplicarFiltro()">Aplicar filtro</button>
         <button class="btn-filtrar outline" onclick="filtroMesActual()">Este mes</button>
+        <span id="gananciaHoyBadge" class="badge-hoy" style="margin-left:auto">—</span>
       </div>
     </div>
 
@@ -107,22 +108,22 @@
       <h3 class="card-titulo">🏦 Caja & Capital — ¿De dónde sale la plata?</h3>
       <p style="font-size:0.84rem;color:#6b7c93;margin-bottom:14px">Seguimiento de cuánto tienes en caja (de ventas) y cuánto capital externo has invertido en el período.</p>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
-        <div style="background:#eafaf1;border-radius:10px;padding:14px;border-left:4px solid #27ae60">
+        <div class="mini-stat" style="background:#eafaf1;border-radius:10px;padding:14px;border-left:4px solid #27ae60">
           <div style="font-size:0.8rem;font-weight:600;color:#1e8449;margin-bottom:4px">💰 CAJA (de ventas)</div>
           <div style="font-size:1.3rem;font-weight:700;color:#1e8449" id="cajaSaldo">$0</div>
           <div style="font-size:0.75rem;color:#6b7c93;margin-top:4px" id="cajaSub">Ventas cobradas − compras de caja − gastos</div>
         </div>
-        <div style="background:#eaf0fb;border-radius:10px;padding:14px;border-left:4px solid #2980b9">
+        <div class="mini-stat" style="background:#eaf0fb;border-radius:10px;padding:14px;border-left:4px solid #2980b9">
           <div style="font-size:0.8rem;font-weight:600;color:#1a5276;margin-bottom:4px">💼 CAPITAL EXTERNO invertido</div>
           <div style="font-size:1.3rem;font-weight:700;color:#1a5276" id="capitalExterno">$0</div>
           <div style="font-size:0.75rem;color:#6b7c93;margin-top:4px" id="capitalExternoSub">Aportes propios / inversión nueva</div>
         </div>
-        <div style="background:#fef9e7;border-radius:10px;padding:14px;border-left:4px solid #f39c12">
+        <div class="mini-stat" style="background:#fef9e7;border-radius:10px;padding:14px;border-left:4px solid #f39c12">
           <div style="font-size:0.8rem;font-weight:600;color:#9a6600;margin-bottom:4px">🛒 Compras de caja</div>
           <div style="font-size:1.3rem;font-weight:700;color:#9a6600" id="comprasDeCaja">$0</div>
           <div style="font-size:0.75rem;color:#6b7c93;margin-top:4px">Lo que salió de caja para comprar</div>
         </div>
-        <div style="background:#fdf2f8;border-radius:10px;padding:14px;border-left:4px solid #8e44ad">
+        <div class="mini-stat" style="background:#fdf2f8;border-radius:10px;padding:14px;border-left:4px solid #8e44ad">
           <div style="font-size:0.8rem;font-weight:600;color:#6c3483;margin-bottom:4px">💸 Compras de capital</div>
           <div style="font-size:1.3rem;font-weight:700;color:#6c3483" id="comprasDeCapital">$0</div>
           <div style="font-size:0.75rem;color:#6b7c93;margin-top:4px">Lo que salió de inversión para comprar</div>

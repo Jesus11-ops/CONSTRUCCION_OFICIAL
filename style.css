@@ -89,6 +89,24 @@ header { background: var(--negro); color: white; box-shadow: 0 2px 12px rgba(0,0
 .btn-filtrar.outline { background: white; color: var(--naranja); border: 1.5px solid var(--naranja); }
 .btn-filtrar.outline:hover { background: #fff5ec; }
 
+/* Badge discreto: ganancia de hoy */
+.badge-hoy {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  white-space: nowrap;
+  background: #e9ecef;
+  color: var(--muted);
+  transition: background 0.25s ease, color 0.25s ease;
+}
+.badge-hoy.pos { background: rgba(39,174,96,0.15); color: var(--verde); }
+.badge-hoy.neg { background: rgba(192,57,43,0.15); color: var(--rojo); }
+
+/* Mini-tarjetas (Caja & Capital) */
+.mini-stat { transition: transform 0.2s, box-shadow 0.2s; animation: fadeUp 0.35s ease; }
+.mini-stat:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.08); }
+
 /* ===== RESUMEN GRID ===== */
 .resumen-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
 .res-card { border-radius: var(--radius); padding: 20px 18px; color: white; text-align: center; transition: transform 0.2s, box-shadow 0.2s; }
